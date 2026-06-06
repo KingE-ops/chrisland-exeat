@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Dashboard — Chrisland University Exeat</title>
+  <link rel="stylesheet" href="./student.css"/>
+</head>
+<body>
+
+<!-- Mobile topbar -->
+<div class="mobile-topbar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2>🎓 Chrisland Exeat</h2>
+  <div style="width:36px"></div>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- Cancel Modal -->
+<div id="cancelModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon">🚫</div>
+    <h3>Cancel Request?</h3>
+    <p>Are you sure you want to cancel this exeat request? This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeCancelModal()">Keep It</button>
+      <button id="cancelConfirmBtn" class="modal-btn-confirm-reject">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🎓</div>
+      <div>
+        <h2>Chrisland University</h2>
+        <p>Student Exeat Portal</p>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="userAvatarInitial">S</div>
+      <div class="user-name" id="studentName">Loading...</div>
+      <div class="user-role">Student</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-section="submitSection" onclick="showSection('submitSection')">
+        📝 &nbsp;Submit Exeat
+      </button>
+      <button class="nav-btn" data-section="trackSection" onclick="showSection('trackSection')">
+        📋 &nbsp;My Requests
+      </button>
+      <button class="nav-btn" data-section="profileSection" onclick="showSection('profileSection')">
+        👤 &nbsp;My Profile
+      </button>
+    </nav>
+
+    <div class="sidebar-logout">
+      <button onclick="logout()">🚪 &nbsp;Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- SUBMIT EXEAT -->
+    <div id="submitSection" class="section">
+      <div class="page-header">
+        <div>
+          <h1>Submit Exeat Request</h1>
+          <p>Fill in the details below to request leave from the hostel.</p>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:660px; width:100%">
+        <form id="exeatForm">
+
+          <div class="form-group">
+            <label>Destination</label>
+            <input type="text" id="destination" placeholder="e.g. Lagos, Ibadan, Family Home" required/>
+          </div>
+
+          <div class="form-group">
+            <label>Reason for Leave</label>
+            <textarea id="reason" placeholder="Briefly describe the reason for your leave..." required></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Departure Date</label>
+              <input type="date" id="departureDate" required/>
+            </div>
+            <div class="form-group">
+              <label>Return Date</label>
+              <input type="date" id="returnDate" required/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Emergency Contact Name</label>
+              <input type="text" id="emergencyContact" placeholder="Parent / Guardian name" required/>
+            </div>
+            <div class="form-group">
+              <label>Emergency Phone</label>
+              <input type="tel" id="emergencyPhone" placeholder="+234 800 000 0000" required/>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="submitBtn" style="max-width:220px; margin-top:10px">
+            Submit Request →
+          </button>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- MY REQUESTS -->
+    <div id="trackSection" class="section hidden">
+      <div class="page-header">
+        <div>
+          <h1>My Exeat Requests</h1>
+          <p>Updates in real-time. Approved requests can be downloaded as PDF.</p>
+        </div>
+      </div>
+      <div id="myRequests"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="profileSection" class="section hidden">
+      <div class="page-header">
+        <div>
+          <h1>My Profile</h1>
+          <p>Your registered information on the system.</p>
+        </div>
+      </div>
+      <div class="card" style="max-width:520px">
+        <div class="profile-grid">
+          <div class="profile-item"><label>Full Name</label><p id="profileName">—</p></div>
+          <div class="profile-item"><label>Matric Number</label><p id="studentMatric">—</p></div>
+          <div class="profile-item"><label>Department</label><p id="studentDept">—</p></div>
+          <div class="profile-item"><label>Hostel</label><p id="studentHostel">—</p></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/student.js"></script>
+<script>
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('departureDate').min = today;
+  document.getElementById('returnDate').min = today;
+
+  document.querySelector('[data-section="profileSection"]').addEventListener('click', () => {
+    document.getElementById('profileName').textContent =
+      document.getElementById('studentName').textContent;
+  });
+</script>
+</body>
+</html>

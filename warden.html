@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Warden Portal — Chrisland University Exeat</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<!-- Mobile Top Bar -->
+<div class="mobile-topbar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2>🔐 Warden Portal</h2>
+  <div style="width:32px"></div>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="dashboard">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🔐</div>
+      <div><h2>Chrisland University</h2><p>Warden Portal</p></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar">W</div>
+      <div class="user-name" id="wardenName">Loading...</div>
+      <div class="user-role">Hostel Warden</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active">🔍 Verify Exeat</button>
+    </nav>
+    <div class="sidebar-logout"><button onclick="logout()">🚪 Sign Out</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="warden-search-box">
+      <div style="font-size:2.8rem; margin-bottom:12px">🔍</div>
+      <h2>Verify Student Exeat</h2>
+      <p>Search by student name or matric number to confirm they have a valid approved exeat.</p>
+      <form id="searchForm">
+        <div class="search-input-group">
+          <input type="text" id="studentSearch" placeholder="Student name or matric number..." required/>
+          <button type="submit" class="btn-primary">Search</button>
+        </div>
+      </form>
+      <div id="searchResult"></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/warden.js"></script>
+</body>
+</html>

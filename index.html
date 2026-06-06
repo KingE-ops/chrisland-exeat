@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chrisland University — Exeat System</title>
+  <link rel="stylesheet" href="auth.css"/>
+  <style>
+    /* ── INDEX PAGE ONLY ── */
+    body.portal-select {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #200045;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 110% 10%, rgba(124,47,212,0.45) 0%, transparent 58%),
+        radial-gradient(ellipse 60% 50% at -10% 90%, rgba(212,168,71,0.10) 0%, transparent 55%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cpath d='M0 32h64M32 0v64' stroke='rgba(255,255,255,.025)' stroke-width='.6'/%3E%3C/svg%3E");
+      font-family: 'Outfit', system-ui, sans-serif;
+      padding: 32px 20px;
+      gap: 0;
+    }
+
+    /* ── TOP HEADER ── */
+    .index-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .index-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.20);
+      background: rgba(255,255,255,0.08);
+      padding: 6px;
+      object-fit: contain;
+      margin-bottom: 22px;
+    }
+
+    .index-uni {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #f0c96a;
+      margin-bottom: 10px;
+    }
+
+    .index-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+    }
+
+    .index-subtitle {
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.52);
+      max-width: 380px;
+      line-height: 1.7;
+    }
+
+    .index-divider {
+      width: 40px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #d4a847, transparent);
+      margin: 18px auto 0;
+    }
+
+    /* ── PORTAL CARDS ── */
+    .portal-grid {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 860px;
+      width: 100%;
+    }
+
+    .portal-card {
+      flex: 1;
+      min-width: 220px;
+      max-width: 260px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 20px;
+      padding: 36px 28px 32px;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.25s, border-color 0.25s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s;
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 20px 20px 0 0;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .portal-card:hover {
+      background: rgba(255,255,255,0.11);
+      border-color: rgba(255,255,255,0.22);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 48px rgba(10,0,24,0.45);
+    }
+
+    .portal-card:hover::before { opacity: 1; }
+
+    /* Per-card accent colours */
+    .card-student::before { background: linear-gradient(90deg, #7c2fd4, #a86de0); }
+    .card-warden::before  { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+    .card-dsa::before     { background: linear-gradient(90deg, #d4a847, #f0c96a); }
+
+    .portal-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 20px;
+      transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .portal-card:hover .portal-icon { transform: scale(1.12); }
+
+    .card-student .portal-icon { background: rgba(124,47,212,0.22); border: 1px solid rgba(124,47,212,0.35); }
+    .card-warden  .portal-icon { background: rgba(14,165,233,0.18); border: 1px solid rgba(14,165,233,0.30); }
+    .card-dsa     .portal-icon { background: rgba(212,168,71,0.18); border: 1px solid rgba(212,168,71,0.30); }
+
+    .portal-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .card-student .portal-label { color: #a86de0; }
+    .card-warden  .portal-label { color: #38bdf8; }
+    .card-dsa     .portal-label { color: #f0c96a; }
+
+    .portal-name {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.45rem;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    .portal-desc {
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.48);
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .portal-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
+      border-radius: 50px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border: 1px solid;
+      transition: all 0.2s;
+      margin-top: auto;
+    }
+
+    .card-student .portal-cta { color: #a86de0; border-color: rgba(124,47,212,0.40); background: rgba(124,47,212,0.10); }
+    .card-warden  .portal-cta { color: #38bdf8; border-color: rgba(14,165,233,0.35); background: rgba(14,165,233,0.08); }
+    .card-dsa     .portal-cta { color: #f0c96a; border-color: rgba(212,168,71,0.38); background: rgba(212,168,71,0.08); }
+
+    .portal-card:hover .portal-cta { filter: brightness(1.15); }
+
+    /* ── FOOTER ── */
+    .index-footer {
+      margin-top: 52px;
+      text-align: center;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.22);
+      line-height: 1.7;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .portal-grid { flex-direction: column; align-items: center; gap: 14px; }
+      .portal-card { max-width: 100%; width: 100%; min-width: unset; padding: 28px 24px; flex-direction: row; text-align: left; gap: 18px; border-radius: 16px; }
+      .portal-icon { width: 54px; height: 54px; font-size: 1.5rem; border-radius: 14px; flex-shrink: 0; margin-bottom: 0; }
+      .portal-card:hover { transform: translateY(-3px); }
+      .portal-body { display: flex; flex-direction: column; flex: 1; }
+      .portal-name { font-size: 1.2rem; margin-bottom: 4px; }
+      .portal-desc { font-size: 0.76rem; margin-bottom: 12px; }
+      .portal-cta  { align-self: flex-start; padding: 7px 16px; }
+      .index-header { margin-bottom: 36px; }
+      .index-logo   { width: 76px; height: 76px; }
+      .index-title  { font-size: 1.7rem; }
+    }
+
+    @media (max-width: 380px) {
+      .portal-card { padding: 22px 18px; }
+      .index-title  { font-size: 1.45rem; }
+    }
+  </style>
+</head>
+<body class="portal-select">
+
+  <div class="index-header">
+    <img
+      class="index-logo"
+      src="https://www.chrislanduniversity.edu.ng/images/cu-logo.png"
+      alt="Chrisland University"
+    />
+    <div class="index-uni">Chrisland University</div>
+    <h1 class="index-title">Student Exeat System</h1>
+    <p class="index-subtitle">Select your portal to continue. Each portal is secured and role-restricted.</p>
+    <div class="index-divider"></div>
+  </div>
+
+  <div class="portal-grid">
+
+    <!-- STUDENT -->
+    <a href="login-student.html" class="portal-card card-student">
+      <div class="portal-icon">🎓</div>
+      <div class="portal-body">
+        <div class="portal-label">Portal 01</div>
+        <div class="portal-name">Student</div>
+        <div class="portal-desc">Submit exeat requests and track approval status in real time.</div>
+        <div class="portal-cta">Enter Portal →</div>
+      </div>
+    </a>
+
+    <!-- WARDEN -->
+    <a href="login-warden.html" class="portal-card card-warden">
+      <div class="portal-icon">🏠</div>
+      <div class="portal-body">
+        <div class="portal-label">Portal 02</div>
+        <div class="portal-name">Warden</div>
+        <div class="portal-desc">Verify student exeat status quickly using matric number or name.</div>
+        <div class="portal-cta">Enter Portal →</div>
+      </div>
+    </a>
+
+    <!-- DSA -->
+    <a href="login-dsa.html" class="portal-card card-dsa">
+      <div class="portal-icon">🔑</div>
+      <div class="portal-body">
+        <div class="portal-label">Portal 03</div>
+        <div class="portal-name">DSA</div>
+        <div class="portal-desc">Review, approve or reject student exeat requests as Dean of Student Affairs.</div>
+        <div class="portal-cta">Enter Portal →</div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="index-footer">
+    © 2026 Chrisland University · Office of the Dean of Student Affairs<br/>
+    Ajebo Road, Abeokuta, Ogun State
+  </div>
+
+</body>
+</html>

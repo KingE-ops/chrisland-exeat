@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DSA Portal — Chrisland</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="mobile-topbar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2>🏛️ DSA Portal</h2>
+  <div style="width:32px"></div>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- Approve/Reject Modal -->
+<div id="confirmModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon" id="modalIcon"></div>
+    <h3 id="modalTitle"></h3>
+    <p id="modalMsg"></p>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeModal()">Cancel</button>
+      <button id="modalConfirmBtn" onclick="executeAction()"></button>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🏛️</div>
+      <div><h2>Chrisland University</h2><p>DSA Portal</p></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar">D</div>
+      <div class="user-name" id="dsaName">Loading...</div>
+      <div class="user-role">Dean of Student Affairs</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-section="requestsSection" onclick="showDSASection('requestsSection')">
+        📋 Requests <span id="pendingBadge" class="pending-badge" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" data-section="statsSection" onclick="showDSASection('statsSection')">📊 Overview</button>
+    </nav>
+    <div class="sidebar-logout"><button onclick="logout()">🚪 Sign Out</button></div>
+  </aside>
+
+  <main class="main-content">
+    <!-- REQUESTS -->
+    <div id="requestsSection" class="section">
+      <div class="page-header">
+        <h1>Exeat Requests</h1>
+        <p>Review and approve or reject student exeat requests.</p>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="🔍 Search by name, matric, or destination..."/>
+      </div>
+
+      <!-- Date Filter -->
+      <div class="date-filter">
+        <div class="date-filter-group">
+          <label>Departure From</label>
+          <input type="date" id="filterFrom" onchange="applyFilters()"/>
+        </div>
+        <div class="date-filter-group">
+          <label>Departure To</label>
+          <input type="date" id="filterTo" onchange="applyFilters()"/>
+        </div>
+        <button class="btn-clear-filter" onclick="clearFilters()">✕ Clear</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-status="pending" onclick="loadRequests('pending')">⏳ Pending</button>
+        <button class="tab-btn" data-status="approved" onclick="loadRequests('approved')">✅ Approved</button>
+        <button class="tab-btn" data-status="rejected" onclick="loadRequests('rejected')">❌ Rejected</button>
+        <button class="tab-btn" data-status="all" onclick="loadRequests('all')">📁 All</button>
+      </div>
+
+      <div id="requestsContainer"></div>
+    </div>
+
+    <!-- STATS -->
+    <div id="statsSection" class="section hidden">
+      <div class="page-header">
+        <h1>Overview</h1>
+        <p>Summary of all exeat activity.</p>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-number" id="statTotal">—</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-number" id="statPending" style="color:var(--pending)">—</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-number" id="statApproved" style="color:var(--success)">—</div><div class="stat-label">Approved</div></div>
+        <div class="stat-card"><div class="stat-number" id="statRejected" style="color:var(--danger)">—</div><div class="stat-label">Rejected</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/dsa.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Warden Login — Chrisland University Exeat</title>
+  <link rel="stylesheet" href="auth.css"/>
+</head>
+<body class="auth-page">
+
+  <div class="auth-brand">
+    <img class="brand-logo-img" src="https://www.chrislanduniversity.edu.ng/images/cu-logo.png" alt="Chrisland University"/>
+    <div class="brand-uni">Chrisland University</div>
+    <h1 class="brand-title">Warden Portal</h1>
+    <p class="brand-subtitle">Hostel wardens — quickly verify whether a student has an approved exeat.</p>
+    <div class="brand-divider"></div>
+    <div class="brand-role-indicator">🏠 Warden Access</div>
+    <!-- <div class="brand-links"><a href="index.html">← All Portals</a></div> -->
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-box">
+      <h2>Warden Sign In</h2>
+      <p class="auth-desc">Sign in with your warden credentials to access the student verification tool.</p>
+
+      <div id="wardenError" class="alert alert-error hidden"></div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="wardenEmail" placeholder="warden@chrisland.edu.ng"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="wardenPassword" placeholder="Enter your password"/>
+      </div>
+      <button class="btn-primary" onclick="wardenLogin()" id="wardenLoginBtn">Sign In →</button>
+
+      <p class="auth-footer-note">Contact ICT admin if you need account access.</p>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    auth.onAuthStateChanged(user => {
+      if (user) window.location.href = 'warden.html';
+    });
+
+    async function wardenLogin() {
+      const email    = document.getElementById('wardenEmail').value.trim();
+      const password = document.getElementById('wardenPassword').value;
+      const btn      = document.getElementById('wardenLoginBtn');
+      const err      = document.getElementById('wardenError');
+
+      err.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch(e) {
+        const msgs = {
+          'auth/user-not-found':     'No account found with this email.',
+          'auth/wrong-password':     'Incorrect password.',
+          'auth/invalid-email':      'Invalid email address.',
+          'auth/invalid-credential': 'Invalid email or password.'
+        };
+        err.textContent = msgs[e.code] || e.message;
+        err.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Sign In →';
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') wardenLogin(); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+// ============================================================
+// PASTE INTO: Firebase Console → Firestore → Rules
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      // Allow anyone to read the users collection
+      // (needed so login can look up email by matric number)
+      allow read: if true;
+
+      // Only the authenticated user can write their own profile
+      allow create, update: if request.auth != null
+                             && request.auth.uid == userId;
+    }
+
+    match /exeatRequests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+
+      // Only DSA can approve/reject
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dsa';
+
+      allow delete: if false;
+    }
+  }
+}
+
+// ============================================================
+// FIREBASE AUTH SETUP:
+// Authentication → Sign-in method → Enable "Email/Password"
+// (You can disable "Email link" — it's no longer needed)
+//
+// FIRESTORE INDEXES (Firestore → Indexes → Composite):
+//   Collection: exeatRequests | studentId ASC | createdAt DESC
+//   Collection: exeatRequests | status ASC | createdAt DESC
+//   Collection: users | matric ASC | role ASC
+// ============================================================
