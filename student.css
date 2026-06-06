@@ -109,6 +109,7 @@ body {
   top: 0; left: 0;
   width: var(--sidebar-w);
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height — fixes mobile browser chrome */
   background: var(--p900);
   background-image:
     radial-gradient(ellipse 100% 50% at 0% 0%,   rgba(124,47,212,0.35) 0%, transparent 55%),
@@ -116,8 +117,7 @@ body {
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 20h40M20 0v40' stroke='rgba(255,255,255,0.018)' stroke-width='0.5'/%3E%3C/svg%3E");
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  overflow-y: auto;
+  overflow: hidden; /* changed from overflow-y: auto */
   z-index: 200;
   transition: transform 0.3s var(--ease);
   box-shadow: 4px 0 32px rgba(15,0,32,0.28);
@@ -224,6 +224,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .nav-btn {
@@ -268,10 +270,11 @@ body {
 
 /* ── Logout ── */
 .sidebar-logout {
+  flex-shrink: 0;
   padding: 12px;
   border-top: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
 }
+
 
 .sidebar-logout button {
   width: 100%;

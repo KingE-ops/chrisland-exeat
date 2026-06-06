@@ -2,10 +2,6 @@
 
 let redirecting = false;
 
-// Safety: clear any stale session when login page loads
-auth.signOut();
-
-// Redirect only if a valid student session exists
 auth.onAuthStateChanged(async (user) => {
   if (!user || redirecting) return;
   try {
@@ -19,9 +15,6 @@ auth.onAuthStateChanged(async (user) => {
   } catch(e) {}
 });
 
-// ---------------------------------------------------------------
-// LOGIN — matric + password
-// ---------------------------------------------------------------
 async function studentLogin() {
   const matric   = document.getElementById('loginMatric').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -60,9 +53,6 @@ async function studentLogin() {
   }
 }
 
-// ---------------------------------------------------------------
-// REGISTER — name, email, matric, password
-// ---------------------------------------------------------------
 async function registerStudent() {
   const name            = document.getElementById('regName').value.trim();
   const matric          = document.getElementById('regMatric').value.trim();
@@ -117,9 +107,6 @@ async function registerStudent() {
   }
 }
 
-// ---------------------------------------------------------------
-// FORGOT PASSWORD — send reset email
-// ---------------------------------------------------------------
 async function sendReset() {
   const email = document.getElementById('resetEmail').value.trim();
   const btn   = document.getElementById('resetBtn');
@@ -155,9 +142,6 @@ async function sendReset() {
   }
 }
 
-// ---------------------------------------------------------------
-// UI HELPERS
-// ---------------------------------------------------------------
 function showLogin() {
   document.getElementById('registerSection').classList.add('hidden');
   document.getElementById('resetSection').classList.add('hidden');
