@@ -34,20 +34,48 @@
   </aside>
 
   <main class="main-content">
-    <div class="warden-search-box">
-      <div style="font-size:2.8rem; margin-bottom:12px">🔍</div>
-      <h2>Verify Student Exeat</h2>
-      <p>Search by student name or matric number to confirm they have a valid approved exeat.</p>
-      <form id="searchForm">
-        <div class="search-input-group">
-          <input type="text" id="studentSearch" placeholder="Student name or matric number..." required/>
-          <button type="submit" class="btn-primary">Search</button>
-        </div>
-      </form>
-      <div id="searchResult"></div>
+
+    <!-- Pass ID Verifier -->
+    <div style="max-width:640px; margin:0 auto;">
+
+      <!-- Header -->
+      <div style="text-align:center; margin-bottom:32px;">
+        <div style="width:64px; height:64px; border-radius:50%; background:var(--purple-pale); border:2px solid var(--purple-border); display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">🔍</div>
+        <h1 style="font-size:1.4rem; font-weight:800; color:var(--purple); margin-bottom:6px;">Verify Student Exeat Pass</h1>
+        <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.6; max-width:460px; margin:0 auto;">
+          Enter the unique Pass ID printed on a student's exeat pass to confirm its authenticity and validity status.
+        </p>
+      </div>
+
+      <!-- Input Card -->
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:28px; box-shadow:var(--shadow);">
+        <label style="font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; display:block; margin-bottom:10px;">Pass ID</label>
+        <form id="passIdForm" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input
+            type="text"
+            id="passIdInput"
+            placeholder="e.g. EX-2026-A3F9K2"
+            style="flex:1; min-width:200px; font-size:0.95rem; font-family:'Plus Jakarta Sans',sans-serif; letter-spacing:0.04em;"
+          />
+          <button
+            type="submit"
+            class="btn-primary"
+            style="width:auto; padding:11px 24px; white-space:nowrap;"
+          >Verify Pass →</button>
+        </form>
+        <p style="font-size:0.76rem; color:var(--text-muted); margin-top:10px;">
+          The Pass ID is a unique alphanumeric code (e.g. <span style="font-family:'DM Mono',monospace; color:var(--purple);">EX-2026-A3F9K2</span>) printed at the top of every issued exeat pass.
+        </p>
+      </div>
+
+      <!-- Result Area -->
+      <div id="passIdResult" style="margin-top:20px;"></div>
+
     </div>
   </main>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>

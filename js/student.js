@@ -38,19 +38,19 @@ function listenToMyRequests() {
       });
       container.innerHTML = '';
       snapshot.forEach(doc => container.appendChild(createRequestCard(doc.id, doc.data())));
-    }, () => { container.innerHTML = '<p class="error-text">Error loading requests. Please refresh.</p>'; });
+    }, () => { container.innerHTML = '<p class="error-text">Unable to load requests. Please refresh.</p>'; });
 }
 
 const exeatForm = document.getElementById('exeatForm');
 if (exeatForm) {
   exeatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const destination     = document.getElementById('destination').value.trim();
-    const reason          = document.getElementById('reason').value.trim();
-    const departureDate   = document.getElementById('departureDate').value;
-    const returnDate      = document.getElementById('returnDate').value;
+    const destination      = document.getElementById('destination').value.trim();
+    const reason           = document.getElementById('reason').value.trim();
+    const departureDate    = document.getElementById('departureDate').value;
+    const returnDate       = document.getElementById('returnDate').value;
     const emergencyContact = document.getElementById('emergencyContact').value.trim();
-    const emergencyPhone  = document.getElementById('emergencyPhone').value.trim();
+    const emergencyPhone   = document.getElementById('emergencyPhone').value.trim();
     if (new Date(returnDate) <= new Date(departureDate)) { showToast('Return date must be after departure date.', 'error'); return; }
     const existing = await db.collection('exeatRequests').where('studentId', '==', currentUser.uid).where('status', '==', 'pending').limit(1).get();
     if (!existing.empty) { showToast('You already have a pending request. Wait for DSA to review it first.', 'error'); return; }
@@ -68,7 +68,7 @@ if (exeatForm) {
       showToast('Exeat request submitted!', 'success');
       exeatForm.reset();
       showSection('trackSection');
-    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+    } catch (err) { showToast('Something went wrong. Please try again.', 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Submit Request →'; }
   });
 }
@@ -81,7 +81,7 @@ async function cancelRequest(docId) {
     try {
       await db.collection('exeatRequests').doc(docId).update({ status: 'cancelled', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       showToast('Request cancelled.', 'info');
-    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+    } catch (err) { showToast('Something went wrong. Please try again.', 'error'); }
   };
 }
 function closeCancelModal() { document.getElementById('cancelModal').classList.add('hidden'); }
@@ -98,6 +98,7 @@ function createRequestCard(docId, data) {
     <div class="card-body">
       <p><strong>Reason:</strong> ${data.reason}</p>
       <p><strong>Departure:</strong> ${formatDate(data.departureDate)} &nbsp;→&nbsp; <strong>Return:</strong> ${formatDate(data.returnDate)}</p>
+      ${data.passId ? `<p><strong>Pass ID:</strong> <span style="font-family:monospace;color:#4B0082;font-weight:700">${data.passId}</span></p>` : ''}
       ${data.dsaComment ? `<p class="comment">💬 <strong>DSA Note:</strong> ${data.dsaComment}</p>` : ''}
     </div>
     ${data.status === 'approved' ? `<div style="padding-top:12px"><button class="btn-download" onclick='downloadStudentExeat(${JSON.stringify(data).replace(/'/g, "&#39;")})'>⬇️ Download Exeat Pass (PDF)</button></div>` : ''}
@@ -106,93 +107,103 @@ function createRequestCard(docId, data) {
   return card;
 }
 
-// ── Fetch logo as base64 ──
-function fetchLogoAsBase64(url) {
-  return fetch(url)
-    .then(res => { if (!res.ok) throw new Error('fetch failed'); return res.blob(); })
-    .then(blob => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror  = reject;
-      reader.readAsDataURL(blob);
-    }))
-    .catch(() => null);
+// ── Logo loader — three strategies to handle CORS ──
+async function fetchLogoAsBase64(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (res.ok) return await blobToBase64(await res.blob());
+  } catch(_) {}
+  try { return await imageToBase64ViaCanvas(url); } catch(_) {}
+  return null;
+}
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+function imageToBase64ViaCanvas(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch(e) { reject(e); }
+    };
+    img.onerror = reject;
+    img.src = url + '?cb=' + Date.now();
+  });
 }
 
-// ── Main PDF generator ──
+// ── PDF Generator ──
 async function downloadStudentExeat(data) {
   const logoBase64 = await fetchLogoAsBase64(LOGO_URL);
   const logoTag = logoBase64
     ? `<img class="logo" src="${logoBase64}" alt="Chrisland University"/>`
     : `<div class="logo-fallback">CU</div>`;
 
+  // QR code encodes the pass ID so wardens can scan directly into the verify field
+  const qrValue = data.passId || data.matric;
+  const qrHint  = data.passId
+    ? `Scan to verify this pass instantly in the warden portal, or type the Pass ID: <strong>${data.passId}</strong>`
+    : `Enter matric number <strong>${data.matric}</strong> in the warden portal to verify.`;
+
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Exeat Pass — ${data.matric}</title>
+  <title>Exeat Pass — ${data.passId || data.matric}</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Georgia', serif; background: #fff; color: #1a0533; }
-    .page { max-width: 680px; margin: 0 auto; padding: 48px 48px 40px; position: relative; }
+    html, body { width: 210mm; font-family: 'Georgia', serif; background: #fff; color: #1a0533; }
+    .page { width: 190mm; margin: 0 auto; padding: 10mm 10mm 8mm; position: relative; }
 
-    /* HEADER */
-    .header { display: flex; align-items: center; gap: 20px; padding-bottom: 20px; border-bottom: 3px solid #4B0082; margin-bottom: 24px; }
-    .logo { width: 80px; height: 80px; object-fit: contain; flex-shrink: 0; border-radius: 50%; }
-    .logo-fallback { width: 80px; height: 80px; border-radius: 50%; background: #4B0082; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 900; flex-shrink: 0; font-family: sans-serif; }
-    .header-text { flex: 1; }
-    .header-text .uni-name { font-size: 1.3rem; font-weight: 700; color: #4B0082; letter-spacing: 0.02em; }
-    .header-text .uni-sub { font-size: 0.78rem; color: #6B5B8A; margin-top: 2px; letter-spacing: 0.04em; text-transform: uppercase; }
-    .header-text .doc-title { font-size: 0.9rem; color: #4B0082; margin-top: 6px; font-weight: 600; border-top: 1px solid #D8B4FE; padding-top: 6px; }
+    .header { display: flex; align-items: center; gap: 14px; padding-bottom: 10px; border-bottom: 2.5px solid #4B0082; margin-bottom: 12px; }
+    .logo { width: 62px; height: 62px; object-fit: contain; flex-shrink: 0; border-radius: 50%; }
+    .logo-fallback { width: 62px; height: 62px; border-radius: 50%; background: #4B0082; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; flex-shrink: 0; font-family: sans-serif; }
+    .header-text .uni-name { font-size: 1.1rem; font-weight: 700; color: #4B0082; }
+    .header-text .uni-sub { font-size: 0.68rem; color: #6B5B8A; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .header-text .doc-title { font-size: 0.78rem; color: #4B0082; margin-top: 5px; font-weight: 600; border-top: 1px solid #D8B4FE; padding-top: 4px; }
 
-    /* STAMP */
-    .stamp-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-    .approved-stamp { background: #dcfce7; border: 1.5px solid #16a34a; color: #14532d; padding: 8px 18px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; }
-    .doc-ref { font-size: 0.75rem; color: #9ca3af; font-family: 'Courier New', monospace; }
+    .stamp-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .approved-stamp { background: #dcfce7; border: 1.5px solid #16a34a; color: #14532d; padding: 5px 14px; border-radius: 5px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .pass-id-stamp { font-size: 0.78rem; font-family: 'Courier New', monospace; color: #4B0082; font-weight: 700; background: #f3e8ff; border: 1.5px solid #c084fc; padding: 5px 12px; border-radius: 5px; }
 
-    /* SECTIONS */
-    .section-title { font-size: 0.65rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; border-bottom: 1px solid #f3e8ff; padding-bottom: 4px; }
-    .info-block { margin-bottom: 20px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { margin-bottom: 6px; }
-    .field-label { font-size: 0.65rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
-    .field-value { font-size: 0.92rem; color: #1a0533; font-weight: 500; margin-top: 1px; }
-    .divider { border: none; border-top: 1px solid #e9d8fd; margin: 18px 0; }
+    .section-title { font-size: 0.6rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 7px; border-bottom: 1px solid #f3e8ff; padding-bottom: 3px; }
+    .info-block { margin-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
+    .field-label { font-size: 0.6rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+    .field-value { font-size: 0.82rem; color: #1a0533; font-weight: 500; margin-top: 1px; }
+    .divider { border: none; border-top: 1px solid #e9d8fd; margin: 8px 0; }
 
-    /* QR CODE SECTION */
-    .qr-section {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin: 20px 0;
-      padding: 16px 20px;
-      background: #f7f3fe;
-      border: 1px solid #e4d5f9;
-      border-radius: 10px;
-    }
+    .qr-section { display: flex; align-items: center; gap: 14px; margin: 10px 0; padding: 10px 14px; background: #f7f3fe; border: 1px solid #e4d5f9; border-radius: 8px; }
     .qr-box { flex-shrink: 0; }
-    .qr-box canvas, .qr-box img { display: block; }
-    .qr-info { flex: 1; }
-    .qr-info .qr-label { font-size: 0.62rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
-    .qr-info .qr-matric { font-size: 1rem; font-weight: 700; color: #4B0082; font-family: 'Courier New', monospace; margin-bottom: 4px; }
-    .qr-info .qr-hint { font-size: 0.72rem; color: #9ca3af; line-height: 1.55; }
+    .qr-info .qr-label { font-size: 0.58rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+    .qr-info .qr-hint { font-size: 0.65rem; color: #6B5B8A; line-height: 1.55; }
 
-    /* SIGNATURES */
-    .sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
-    .sig-label { font-size: 0.65rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 36px; }
-    .sig-line { border-bottom: 1.5px solid #4B0082; margin-bottom: 6px; }
-    .sig-name { font-size: 0.72rem; color: #6B5B8A; }
+    .sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
+    .sig-label { font-size: 0.6rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 24px; }
+    .sig-line { border-bottom: 1.5px solid #4B0082; margin-bottom: 5px; }
+    .sig-name { font-size: 0.65rem; color: #6B5B8A; }
 
-    /* FOOTER */
-    .footer { margin-top: 28px; padding-top: 14px; border-top: 2px solid #4B0082; display: flex; justify-content: space-between; align-items: center; }
-    .footer-left { font-size: 0.68rem; color: #9ca3af; max-width: 340px; line-height: 1.5; }
-    .footer-right { font-size: 0.68rem; color: #4B0082; font-weight: 700; text-align: right; }
+    .footer { margin-top: 14px; padding-top: 10px; border-top: 2px solid #4B0082; display: flex; justify-content: space-between; align-items: center; }
+    .footer-left { font-size: 0.62rem; color: #9ca3af; max-width: 320px; line-height: 1.5; }
+    .footer-right { font-size: 0.62rem; color: #4B0082; font-weight: 700; text-align: right; }
 
-    /* WATERMARK */
-    .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 5rem; color: rgba(75,0,130,0.04); font-weight: 900; pointer-events: none; letter-spacing: 0.1em; white-space: nowrap; z-index: 0; }
+    .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 4.5rem; color: rgba(75,0,130,0.04); font-weight: 900; pointer-events: none; white-space: nowrap; }
 
-    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    @media print {
+      html, body { width: 210mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4 portrait; margin: 0; }
+    }
   </style>
 </head>
 <body>
@@ -210,7 +221,7 @@ async function downloadStudentExeat(data) {
 
   <div class="stamp-row">
     <div class="approved-stamp">✅ Approved by Dean of Student Affairs</div>
-    <div class="doc-ref">REF: EX/${data.matric}/${new Date().getFullYear()}</div>
+    ${data.passId ? `<div class="pass-id-stamp">🔐 ${data.passId}</div>` : `<div style="font-size:0.7rem;color:#9ca3af;font-family:monospace">REF: EX/${data.matric}/${new Date().getFullYear()}</div>`}
   </div>
 
   <div class="info-block">
@@ -243,18 +254,16 @@ async function downloadStudentExeat(data) {
       <div class="field"><div class="field-label">Contact Person</div><div class="field-value">${data.emergencyContact}</div></div>
       <div class="field"><div class="field-label">Phone Number</div><div class="field-value">${data.emergencyPhone}</div></div>
     </div>
-    ${data.dsaComment ? `<div class="field" style="margin-top:10px"><div class="field-label">DSA Note</div><div class="field-value">${data.dsaComment}</div></div>` : ''}
+    ${data.dsaComment ? `<div class="field" style="margin-top:8px"><div class="field-label">DSA Note</div><div class="field-value">${data.dsaComment}</div></div>` : ''}
   </div>
 
   <hr class="divider"/>
 
-  <!-- QR CODE -->
   <div class="qr-section">
     <div class="qr-box" id="qrcode"></div>
     <div class="qr-info">
-      <div class="qr-label">Warden Verification Code</div>
-      <div class="qr-matric">${data.matric}</div>
-      <div class="qr-hint">Warden: scan this QR code or enter the matric number above into the warden portal to instantly verify this exeat pass.</div>
+      <div class="qr-label">Warden Verification</div>
+      <div class="qr-hint">${qrHint}</div>
     </div>
   </div>
 
@@ -277,20 +286,15 @@ async function downloadStudentExeat(data) {
   </div>
 
 </div>
-
 <script>
-  // Generate QR after page loads, then print
   window.onload = function () {
     new QRCode(document.getElementById('qrcode'), {
-      text: '${data.matric}',
-      width: 90,
-      height: 90,
-      colorDark: '#4B0082',
-      colorLight: '#f7f3fe',
+      text: '${qrValue}',
+      width: 75, height: 75,
+      colorDark: '#4B0082', colorLight: '#f7f3fe',
       correctLevel: QRCode.CorrectLevel.H
     });
-    // Small delay so QR renders before print dialog opens
-    setTimeout(() => window.print(), 600);
+    setTimeout(() => window.print(), 700);
   };
 <\/script>
 </body>
