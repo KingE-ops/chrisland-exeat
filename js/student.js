@@ -5,12 +5,28 @@ let requestsListener = null;
 
 const LOGO_URL = './images/cu-logo.png';
 
+// ISSUE 3 FIX: Called once auth confirms a valid student session.
+// body { visibility: hidden } in student.html keeps the page blank
+// until this runs — no dashboard content ever flashes to an unauth user.
+function revealDashboard() {
+  document.body.style.visibility = 'visible';
+}
+
 auth.onAuthStateChanged(async (user) => {
   if (!user) { window.location.href = 'login-student.html'; return; }
+
+  // EMAIL VERIFICATION CHECK — boot unverified users back to login
+  if (!user.emailVerified) {
+    window.location.href = 'login-student.html';
+    return;
+  }
+
   const userDoc = await db.collection('users').doc(user.uid).get();
   if (!userDoc.exists || userDoc.data().role !== 'student') {
-    auth.signOut(); window.location.href = 'login-student.html'; return;
+    window.location.href = 'login-student.html'; return;
   }
+  // Valid verified student confirmed — now safe to reveal the dashboard
+  revealDashboard();
   currentUser = { uid: user.uid, ...userDoc.data() };
   document.getElementById('studentName').textContent = currentUser.name;
   document.getElementById('studentMatric').textContent = currentUser.matric;
@@ -148,7 +164,6 @@ async function downloadStudentExeat(data) {
     ? `<img class="logo" src="${logoBase64}" alt="Chrisland University"/>`
     : `<div class="logo-fallback">CU</div>`;
 
-  // QR code encodes the pass ID so wardens can scan directly into the verify field
   const qrValue = data.passId || data.matric;
   const qrHint  = data.passId
     ? `Scan to verify this pass instantly in the warden portal, or type the Pass ID: <strong>${data.passId}</strong>`
@@ -164,41 +179,33 @@ async function downloadStudentExeat(data) {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 210mm; font-family: 'Georgia', serif; background: #fff; color: #1a0533; }
     .page { width: 190mm; margin: 0 auto; padding: 10mm 10mm 8mm; position: relative; }
-
     .header { display: flex; align-items: center; gap: 14px; padding-bottom: 10px; border-bottom: 2.5px solid #4B0082; margin-bottom: 12px; }
     .logo { width: 62px; height: 62px; object-fit: contain; flex-shrink: 0; border-radius: 50%; }
     .logo-fallback { width: 62px; height: 62px; border-radius: 50%; background: #4B0082; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; flex-shrink: 0; font-family: sans-serif; }
     .header-text .uni-name { font-size: 1.1rem; font-weight: 700; color: #4B0082; }
     .header-text .uni-sub { font-size: 0.68rem; color: #6B5B8A; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.04em; }
     .header-text .doc-title { font-size: 0.78rem; color: #4B0082; margin-top: 5px; font-weight: 600; border-top: 1px solid #D8B4FE; padding-top: 4px; }
-
     .stamp-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .approved-stamp { background: #dcfce7; border: 1.5px solid #16a34a; color: #14532d; padding: 5px 14px; border-radius: 5px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
     .pass-id-stamp { font-size: 0.78rem; font-family: 'Courier New', monospace; color: #4B0082; font-weight: 700; background: #f3e8ff; border: 1.5px solid #c084fc; padding: 5px 12px; border-radius: 5px; }
-
     .section-title { font-size: 0.6rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 7px; border-bottom: 1px solid #f3e8ff; padding-bottom: 3px; }
     .info-block { margin-bottom: 10px; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
     .field-label { font-size: 0.6rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
     .field-value { font-size: 0.82rem; color: #1a0533; font-weight: 500; margin-top: 1px; }
     .divider { border: none; border-top: 1px solid #e9d8fd; margin: 8px 0; }
-
     .qr-section { display: flex; align-items: center; gap: 14px; margin: 10px 0; padding: 10px 14px; background: #f7f3fe; border: 1px solid #e4d5f9; border-radius: 8px; }
     .qr-box { flex-shrink: 0; }
     .qr-info .qr-label { font-size: 0.58rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
     .qr-info .qr-hint { font-size: 0.65rem; color: #6B5B8A; line-height: 1.55; }
-
     .sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
     .sig-label { font-size: 0.6rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 24px; }
     .sig-line { border-bottom: 1.5px solid #4B0082; margin-bottom: 5px; }
     .sig-name { font-size: 0.65rem; color: #6B5B8A; }
-
     .footer { margin-top: 14px; padding-top: 10px; border-top: 2px solid #4B0082; display: flex; justify-content: space-between; align-items: center; }
     .footer-left { font-size: 0.62rem; color: #9ca3af; max-width: 320px; line-height: 1.5; }
     .footer-right { font-size: 0.62rem; color: #4B0082; font-weight: 700; text-align: right; }
-
     .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 4.5rem; color: rgba(75,0,130,0.04); font-weight: 900; pointer-events: none; white-space: nowrap; }
-
     @media print {
       html, body { width: 210mm; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -209,7 +216,6 @@ async function downloadStudentExeat(data) {
 <body>
 <div class="watermark">CHRISLAND UNIVERSITY</div>
 <div class="page">
-
   <div class="header">
     ${logoTag}
     <div class="header-text">
@@ -218,12 +224,10 @@ async function downloadStudentExeat(data) {
       <div class="doc-title">Office of the Dean of Student Affairs — Student Exeat Pass</div>
     </div>
   </div>
-
   <div class="stamp-row">
     <div class="approved-stamp">✅ Approved by Dean of Student Affairs</div>
     ${data.passId ? `<div class="pass-id-stamp">🔐 ${data.passId}</div>` : `<div style="font-size:0.7rem;color:#9ca3af;font-family:monospace">REF: EX/${data.matric}/${new Date().getFullYear()}</div>`}
   </div>
-
   <div class="info-block">
     <div class="section-title">Student Information</div>
     <div class="info-grid">
@@ -233,9 +237,7 @@ async function downloadStudentExeat(data) {
       <div class="field"><div class="field-label">Hostel</div><div class="field-value">${data.hostel}</div></div>
     </div>
   </div>
-
   <hr class="divider"/>
-
   <div class="info-block">
     <div class="section-title">Leave Details</div>
     <div class="info-grid">
@@ -245,9 +247,7 @@ async function downloadStudentExeat(data) {
       <div class="field"><div class="field-label">Expected Return Date</div><div class="field-value">${formatDate(data.returnDate)}</div></div>
     </div>
   </div>
-
   <hr class="divider"/>
-
   <div class="info-block">
     <div class="section-title">Emergency Contact</div>
     <div class="info-grid">
@@ -256,9 +256,7 @@ async function downloadStudentExeat(data) {
     </div>
     ${data.dsaComment ? `<div class="field" style="margin-top:8px"><div class="field-label">DSA Note</div><div class="field-value">${data.dsaComment}</div></div>` : ''}
   </div>
-
   <hr class="divider"/>
-
   <div class="qr-section">
     <div class="qr-box" id="qrcode"></div>
     <div class="qr-info">
@@ -266,7 +264,6 @@ async function downloadStudentExeat(data) {
       <div class="qr-hint">${qrHint}</div>
     </div>
   </div>
-
   <div class="sig-row">
     <div class="sig-box">
       <div class="sig-label">Dean of Student Affairs</div>
@@ -279,12 +276,10 @@ async function downloadStudentExeat(data) {
       <div class="sig-name">Signature &amp; Official Stamp</div>
     </div>
   </div>
-
   <div class="footer">
     <div class="footer-left">This exeat pass was issued by the Office of the Dean of Student Affairs, Chrisland University. Any alteration, forgery, or misuse of this document is a disciplinary offence.</div>
     <div class="footer-right">Chrisland University<br/>www.chrislanduniversity.edu.ng</div>
   </div>
-
 </div>
 <script>
   window.onload = function () {

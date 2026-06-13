@@ -9,17 +9,12 @@
 <body class="auth-page">
 
   <div class="auth-brand">
-    <img
-      class="brand-logo-img"
-      src="https://www.chrislanduniversity.edu.ng/images/cu-logo.png"
-      alt="Chrisland University crest"
-    />
+    <img class="brand-logo-img" src="https://www.chrislanduniversity.edu.ng/images/cu-logo.png" alt="Chrisland University crest"/>
     <div class="brand-uni">Chrisland University</div>
     <h1 class="brand-title">DSA Portal</h1>
     <p class="brand-subtitle">Dean of Student Affairs — manage and approve all student exeat requests.</p>
     <div class="brand-divider"></div>
     <div class="brand-role-indicator">🔑 Staff Access</div>
-    <!-- <div class="brand-links"><a href="index.html">← All Portals</a></div> -->
   </div>
 
   <div class="auth-panel">
@@ -47,39 +42,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/staff-auth.js"></script>
   <script>
-
-  
-    auth.onAuthStateChanged(user => {
-      if (user) window.location.href = 'dsa.html';
-    });
-
-    async function dsaLogin() {
-      const email    = document.getElementById('dsaEmail').value.trim();
-      const password = document.getElementById('dsaPassword').value;
-      const btn      = document.getElementById('dsaLoginBtn');
-      const err      = document.getElementById('dsaError');
-
-      err.classList.add('hidden');
-      btn.disabled = true;
-      btn.textContent = 'Signing in…';
-
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-      } catch(e) {
-        const msgs = {
-          'auth/user-not-found':  'No account found with this email.',
-          'auth/wrong-password':  'Incorrect password.',
-          'auth/invalid-email':   'Invalid email address.',
-          'auth/invalid-credential': 'Invalid email or password.'
-        };
-        err.textContent = msgs[e.code] || e.message;
-        err.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Sign In →';
-      }
-    }
-
     document.addEventListener('keydown', e => { if (e.key === 'Enter') dsaLogin(); });
   </script>
 </body>

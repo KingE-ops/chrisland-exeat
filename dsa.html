@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>DSA Portal — Chrisland</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <!-- ISSUE 3 FIX: Hide body immediately on load. The auth guard in dsa.js
+       calls revealDashboard() only after confirming a valid DSA session.
+       Until then, the user sees nothing — no flash of dashboard content. -->
+  <style>
+    body { visibility: hidden; }
+
+    /* Revoke/action button spinner */
+    .btn-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: white;
+      border-radius: 50%;
+      display: inline-block;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
 
@@ -79,6 +99,7 @@
         <button class="tab-btn active" data-status="pending" onclick="loadRequests('pending')">⏳ Pending</button>
         <button class="tab-btn" data-status="approved" onclick="loadRequests('approved')">✅ Approved</button>
         <button class="tab-btn" data-status="rejected" onclick="loadRequests('rejected')">❌ Rejected</button>
+        <button class="tab-btn" data-status="revoked" onclick="loadRequests('revoked')">🔴 Revoked</button>
         <button class="tab-btn" data-status="all" onclick="loadRequests('all')">📁 All</button>
       </div>
 
@@ -96,6 +117,7 @@
         <div class="stat-card"><div class="stat-number" id="statPending" style="color:var(--pending)">—</div><div class="stat-label">Pending</div></div>
         <div class="stat-card"><div class="stat-number" id="statApproved" style="color:var(--success)">—</div><div class="stat-label">Approved</div></div>
         <div class="stat-card"><div class="stat-number" id="statRejected" style="color:var(--danger)">—</div><div class="stat-label">Rejected</div></div>
+        <div class="stat-card"><div class="stat-number" id="statRevoked" style="color:#b91c1c">—</div><div class="stat-label">Revoked</div></div>
       </div>
     </div>
   </main>

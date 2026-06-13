@@ -1,11 +1,52 @@
 // ==================== STAFF AUTH (Email + Password) ====================
-// Shared by DSA and Warden login pages
-
+// Shared by DSA and Warden login pages.
+//
 // NOTE: No onAuthStateChanged here intentionally.
 // Login pages must NEVER auto-redirect — only dashboards perform auth guards.
-// If a student, DSA, or warden lands on this page, they must always log in manually.
-// This prevents cross-role auto-login (e.g. a logged-in student being pushed into DSA dashboard).
 
+// ---------------------------------------------------------------
+// ISSUE 2 FIX — CLIENT-SIDE LOGIN THROTTLE
+// Separate attempt counters for DSA and Warden.
+// After MAX_ATTEMPTS failures, enforces a LOCKOUT_MS cooldown.
+// ---------------------------------------------------------------
+const STAFF_MAX_ATTEMPTS = 5;
+const STAFF_LOCKOUT_MS   = 5 * 60 * 1000;
+
+const throttle = {
+  dsa:    { attempts: 0, lockoutUntil: 0 },
+  warden: { attempts: 0, lockoutUntil: 0 }
+};
+
+function isLockedOut(role) {
+  return Date.now() < throttle[role].lockoutUntil;
+}
+
+function recordFailedAttempt(role) {
+  throttle[role].attempts++;
+  if (throttle[role].attempts >= STAFF_MAX_ATTEMPTS) {
+    throttle[role].lockoutUntil = Date.now() + STAFF_LOCKOUT_MS;
+    throttle[role].attempts = 0;
+  }
+}
+
+function resetAttempts(role) {
+  throttle[role].attempts = 0;
+  throttle[role].lockoutUntil = 0;
+}
+
+function lockoutMessage(role) {
+  const remaining = Math.ceil((throttle[role].lockoutUntil - Date.now()) / 60000);
+  return `Too many failed attempts. Please wait ${remaining} minute${remaining !== 1 ? 's' : ''} before trying again.`;
+}
+
+function remainingAttemptsMessage(role) {
+  const left = STAFF_MAX_ATTEMPTS - throttle[role].attempts;
+  return left > 0 ? ` ${left} attempt${left !== 1 ? 's' : ''} remaining before lockout.` : '';
+}
+
+// ---------------------------------------------------------------
+// DSA LOGIN
+// ---------------------------------------------------------------
 async function dsaLogin() {
   const email    = document.getElementById('dsaEmail').value.trim();
   const password = document.getElementById('dsaPassword').value;
@@ -20,36 +61,59 @@ async function dsaLogin() {
     return;
   }
 
+  // Lockout check
+  if (isLockedOut('dsa')) {
+    err.textContent = lockoutMessage('dsa');
+    err.classList.remove('hidden');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Signing in…';
 
   try {
-    // Sign out any currently logged-in user first (e.g. a student who wandered here)
-    await auth.signOut();
-
     await auth.signInWithEmailAndPassword(email, password);
-    const user = auth.currentUser;
-    const doc  = await db.collection('users').doc(user.uid).get();
 
-    if (!doc.exists || doc.data().role !== 'dsa') {
+    const user    = auth.currentUser;
+    const userDoc = await db.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists || userDoc.data().role !== 'dsa') {
       await auth.signOut();
-      err.textContent = 'Access denied. This portal is for DSA staff only.';
+      recordFailedAttempt('dsa');
+      err.textContent = isLockedOut('dsa')
+        ? lockoutMessage('dsa')
+        : 'Access denied. This portal is for DSA staff only.' + remainingAttemptsMessage('dsa');
       err.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Sign In →';
       return;
     }
 
+    resetAttempts('dsa');
     window.location.href = 'dsa.html';
 
   } catch(e) {
-    err.textContent = friendlyAuthError(e);
+    if (
+      e.code === 'auth/wrong-password' ||
+      e.code === 'auth/invalid-credential' ||
+      e.code === 'auth/user-not-found'
+    ) {
+      recordFailedAttempt('dsa');
+      err.textContent = isLockedOut('dsa')
+        ? lockoutMessage('dsa')
+        : 'Incorrect email or password.' + remainingAttemptsMessage('dsa');
+    } else {
+      err.textContent = friendlyAuthError(e);
+    }
     err.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Sign In →';
   }
 }
 
+// ---------------------------------------------------------------
+// WARDEN LOGIN
+// ---------------------------------------------------------------
 async function wardenLogin() {
   const email    = document.getElementById('wardenEmail').value.trim();
   const password = document.getElementById('wardenPassword').value;
@@ -64,38 +128,59 @@ async function wardenLogin() {
     return;
   }
 
+  // Lockout check
+  if (isLockedOut('warden')) {
+    err.textContent = lockoutMessage('warden');
+    err.classList.remove('hidden');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Signing in…';
 
   try {
-    // Sign out any currently logged-in user first (e.g. a student who wandered here)
-    await auth.signOut();
-
     await auth.signInWithEmailAndPassword(email, password);
-    const user = auth.currentUser;
-    const doc  = await db.collection('users').doc(user.uid).get();
 
-    if (!doc.exists || doc.data().role !== 'warden') {
+    const user    = auth.currentUser;
+    const userDoc = await db.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists || userDoc.data().role !== 'warden') {
       await auth.signOut();
-      err.textContent = 'Access denied. This portal is for hostel wardens only.';
+      recordFailedAttempt('warden');
+      err.textContent = isLockedOut('warden')
+        ? lockoutMessage('warden')
+        : 'Access denied. This portal is for hostel wardens only.' + remainingAttemptsMessage('warden');
       err.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Sign In →';
       return;
     }
 
+    resetAttempts('warden');
     window.location.href = 'warden.html';
 
   } catch(e) {
-    err.textContent = friendlyAuthError(e);
+    if (
+      e.code === 'auth/wrong-password' ||
+      e.code === 'auth/invalid-credential' ||
+      e.code === 'auth/user-not-found'
+    ) {
+      recordFailedAttempt('warden');
+      err.textContent = isLockedOut('warden')
+        ? lockoutMessage('warden')
+        : 'Incorrect email or password.' + remainingAttemptsMessage('warden');
+    } else {
+      err.textContent = friendlyAuthError(e);
+    }
     err.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Sign In →';
   }
 }
 
-// Converts Firebase auth errors into plain, user-friendly messages.
-// No Firebase codes or technical jargon ever shown to the user.
+// ---------------------------------------------------------------
+// ERROR MESSAGES
+// ---------------------------------------------------------------
 function friendlyAuthError(e) {
   switch(e.code) {
     case 'auth/user-not-found':

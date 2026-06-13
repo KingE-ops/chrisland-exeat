@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ICT Admin — Seed Allowed Matrics</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: monospace; background: #0f0f0f; color: #e5e5e5; padding: 32px; }
+    h1 { color: #a78bfa; margin-bottom: 8px; font-size: 1.2rem; }
+    p  { color: #6b7280; font-size: 0.85rem; margin-bottom: 16px; line-height: 1.6; }
+    input, textarea {
+      width: 100%; max-width: 560px; display: block;
+      background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
+      color: #d4d4d4; font-family: monospace; font-size: 0.85rem;
+      padding: 10px 12px; margin-bottom: 10px;
+    }
+    textarea { height: 180px; resize: vertical; }
+    button {
+      background: #7c3aed; color: white; border: none; border-radius: 6px;
+      padding: 10px 24px; font-size: 0.9rem; cursor: pointer; font-family: monospace;
+      margin-right: 8px;
+    }
+    button:disabled { background: #4b5563; cursor: not-allowed; }
+    button.secondary { background: #374151; }
+    #log {
+      margin-top: 20px; max-width: 560px;
+      background: #111; border: 1px solid #222; border-radius: 6px;
+      padding: 12px; font-size: 0.8rem; line-height: 1.8;
+      max-height: 300px; overflow-y: auto; white-space: pre-wrap;
+    }
+    .ok  { color: #4ade80; }
+    .err { color: #f87171; }
+    .inf { color: #60a5fa; }
+    .warn { color: #fbbf24; }
+    #loginSection, #seedSection { max-width: 560px; }
+    #seedSection { display: none; }
+    .section-title { color: #a78bfa; font-size: 0.9rem; margin-bottom: 12px; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+  <h1>🔐 ICT Admin — Whitelist Matric Numbers</h1>
+  <p>Log in with DSA credentials to seed matric numbers into the system.</p>
+
+  <!-- STEP 1: LOGIN -->
+  <div id="loginSection">
+    <div class="section-title">Step 1 — DSA Login</div>
+    <input type="email" id="dsaEmail" placeholder="DSA email address"/>
+    <input type="password" id="dsaPassword" placeholder="DSA password"/>
+    <button onclick="loginDSA()" id="loginBtn">🔑 Login as DSA</button>
+  </div>
+
+  <!-- STEP 2: SEED -->
+  <div id="seedSection">
+    <div class="section-title">Step 2 — Seed Matric Numbers</div>
+    <p>Paste one matric number per line. Already-existing entries are safely skipped.</p>
+    <textarea id="matricList" placeholder="swe/2024/001&#10;swe/2024/002&#10;csc/2023/015&#10;…"></textarea>
+    <div>
+      <button id="seedBtn" onclick="seedMatrics()">▶ Seed to Firestore</button>
+      <button class="secondary" onclick="logoutDSA()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey:            "AIzaSyBJM3QQndquKWVJ2WsU4IUi46coASDSLS8",
+      authDomain:        "exeat-273c7.firebaseapp.com",
+      databaseURL:       "https://exeat-273c7-default-rtdb.firebaseio.com",
+      projectId:         "exeat-273c7",
+      storageBucket:     "exeat-273c7.firebasestorage.app",
+      messagingSenderId: "201849977834",
+      appId:             "1:201849977834:web:25c5757040b622601d5093"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    function log(msg, cls = 'inf') {
+      const el = document.getElementById('log');
+      el.innerHTML += `<span class="${cls}">${msg}</span>\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function toDocId(matric) {
+      return matric.trim().toLowerCase().replace(/\//g, '-');
+    }
+
+    async function loginDSA() {
+      const email    = document.getElementById('dsaEmail').value.trim();
+      const password = document.getElementById('dsaPassword').value;
+      const btn      = document.getElementById('loginBtn');
+
+      if (!email || !password) { log('⚠ Please enter email and password.', 'warn'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
+      document.getElementById('log').innerHTML = '';
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        const user    = auth.currentUser;
+        const userDoc = await db.collection('users').doc(user.uid).get();
+
+        if (!userDoc.exists || userDoc.data().role !== 'dsa') {
+          await auth.signOut();
+          log('❌ Access denied. Only DSA accounts can use this tool.', 'err');
+          btn.disabled = false; btn.textContent = '🔑 Login as DSA'; return;
+        }
+
+        log(`✅ Logged in as ${userDoc.data().name || email}`, 'ok');
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('seedSection').style.display  = 'block';
+
+      } catch(e) {
+        log(`❌ Login failed: ${e.message}`, 'err');
+        btn.disabled = false; btn.textContent = '🔑 Login as DSA';
+      }
+    }
+
+    async function seedMatrics() {
+      const raw  = document.getElementById('matricList').value.trim();
+      const btn  = document.getElementById('seedBtn');
+      const lines = raw.split('\n').map(l => toDocId(l)).filter(Boolean);
+
+      if (lines.length === 0) { log('⚠ No matric numbers entered.', 'warn'); return; }
+
+      btn.disabled = true;
+      document.getElementById('log').innerHTML = '';
+      log(`ℹ Starting — ${lines.length} matric number(s) to process…`);
+
+      let added = 0, skipped = 0, errors = 0;
+
+      for (const matric of lines) {
+        try {
+          const ref = db.collection('allowedMatrics').doc(matric);
+          const doc = await ref.get();
+          if (doc.exists) {
+            log(`⏭ Skipped (already exists): ${matric}`, 'inf');
+            skipped++;
+          } else {
+            await ref.set({ used: false, addedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            log(`✅ Added: ${matric}`, 'ok');
+            added++;
+          }
+        } catch(e) {
+          log(`❌ Error with ${matric}: ${e.message}`, 'err');
+          errors++;
+        }
+      }
+
+      log(`\nDone — ${added} added, ${skipped} skipped, ${errors} errors.`, errors > 0 ? 'err' : 'ok');
+      btn.disabled = false;
+    }
+
+    async function logoutDSA() {
+      await auth.signOut();
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('seedSection').style.display  = 'none';
+      document.getElementById('dsaPassword').value = '';
+      document.getElementById('loginBtn').disabled = false;
+      document.getElementById('loginBtn').textContent = '🔑 Login as DSA';
+      document.getElementById('log').innerHTML = '';
+      log('ℹ Logged out.', 'inf');
+    }
+  </script>
+</body>
+</html>

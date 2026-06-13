@@ -9,6 +9,10 @@ let pendingAction   = null;
 let pendingListener = null;
 let emailJSReady    = false;
 
+function revealDashboard() {
+  document.body.style.visibility = 'visible';
+}
+
 function loadEmailJS() {
   if (emailJSReady) return;
   const script = document.createElement('script');
@@ -18,17 +22,17 @@ function loadEmailJS() {
 }
 
 // ---------------------------------------------------------------
-// AUTH GUARD — strict, no auto-create
+// AUTH GUARD
 // ---------------------------------------------------------------
 auth.onAuthStateChanged(async (user) => {
   if (!user) { window.location.href = 'login-dsa.html'; return; }
   try {
     const userDoc = await db.collection('users').doc(user.uid).get();
     if (!userDoc.exists || userDoc.data().role !== 'dsa') {
-      await auth.signOut();
       window.location.href = 'login-dsa.html';
       return;
     }
+    revealDashboard();
     currentDSA = { uid: user.uid, ...userDoc.data() };
     document.getElementById('dsaName').textContent = currentDSA.name;
     loadRequests('pending');
@@ -36,18 +40,16 @@ auth.onAuthStateChanged(async (user) => {
     startPendingBadge();
     loadEmailJS();
   } catch(err) {
-    await auth.signOut();
     window.location.href = 'login-dsa.html';
   }
 });
 
 // ---------------------------------------------------------------
 // GENERATE UNIQUE PASS ID
-// e.g. EX-2026-A3F9K2
 // ---------------------------------------------------------------
 function generatePassId() {
-  const year = new Date().getFullYear();
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusable chars (0/O, 1/I)
+  const year  = new Date().getFullYear();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return `EX-${year}-${code}`;
@@ -58,14 +60,12 @@ function generatePassId() {
 // ---------------------------------------------------------------
 async function sendExeatEmail(studentEmail, studentName, status, data, comment) {
   if (!emailJSReady) { console.warn('EmailJS not ready'); return; }
-  const statusLabels = { approved: 'Approved ✅', rejected: 'Rejected ❌' };
+  const statusLabels = { approved: 'Approved ✅', rejected: 'Rejected ❌', revoked: 'Revoked 🚫' };
   const messages = {
     approved: `We are pleased to inform you that your exeat request has been approved by the Dean of Student Affairs. Please download your exeat pass from the student portal and present it to the hostel warden when leaving.`,
-    rejected: `We regret to inform you that your exeat request has been rejected by the Dean of Student Affairs. ${comment ? 'Please see the DSA comment below for more details.' : 'Please contact the DSA office for further information.'}`
+    rejected: `We regret to inform you that your exeat request has been rejected by the Dean of Student Affairs. ${comment ? 'Please see the DSA comment below for more details.' : 'Please contact the DSA office for further information.'}`,
+    revoked:  `We regret to inform you that your previously approved exeat pass has been revoked by the Dean of Student Affairs. ${comment ? 'Please see the DSA comment below.' : 'Please contact the DSA office for further information.'} Your pass is no longer valid.`
   };
-  const dsaCommentHTML = comment
-    ? `<p style="margin:6px 0 0;font-size:0.85rem;color:#6b5b8a;"><strong>DSA Comment:</strong> ${comment}</p>`
-    : '';
   try {
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email:       studentEmail,
@@ -75,7 +75,8 @@ async function sendExeatEmail(studentEmail, studentName, status, data, comment) 
       destination:    data.destination,
       departure_date: formatDate(data.departureDate),
       return_date:    formatDate(data.returnDate),
-      dsa_comment:    dsaCommentHTML,
+      // Plain text — the EmailJS template wraps it in its own styled <p> tag
+      dsa_comment:    comment ? `DSA Comment: ${comment}` : '',
       pass_id:        data.passId || ''
     });
   } catch(e) { console.error('EmailJS error:', e); }
@@ -154,7 +155,13 @@ function clearFilters() {
 function createDSACard(docId, data) {
   const card = document.createElement('div');
   card.className = `dsa-card status-${data.status}`;
-  const statusLabels = { pending: '⏳ Pending', approved: '✅ Approved', rejected: '❌ Rejected', cancelled: '🚫 Cancelled' };
+  const statusLabels = {
+    pending:   '⏳ Pending',
+    approved:  '✅ Approved',
+    rejected:  '❌ Rejected',
+    cancelled: '🚫 Cancelled',
+    revoked:   '🔴 Revoked'   // REVOCATION — new status label
+  };
   card.innerHTML = `
     <div class="card-header">
       <div>
@@ -174,7 +181,9 @@ function createDSACard(docId, data) {
         ${data.passId ? `<div><strong>Pass ID</strong><p style="font-family:monospace;color:#4B0082;font-weight:700">${data.passId}</p></div>` : ''}
       </div>
       ${data.dsaComment ? `<div class="existing-comment">💬 <strong>Comment:</strong> ${data.dsaComment}</div>` : ''}
+      ${data.revokedAt ? `<div class="existing-comment" style="color:#b91c1c;">🔴 <strong>Revoked:</strong> ${formatTimestamp(data.revokedAt)}</div>` : ''}
     </div>
+
     ${data.status === 'pending' ? `
     <div class="card-actions">
       <textarea id="comment-${docId}" class="comment-input" placeholder="Optional comment to student..."></textarea>
@@ -183,6 +192,15 @@ function createDSACard(docId, data) {
         <button class="btn-reject"  onclick="confirmAction('${docId}', 'rejected')">❌ Reject</button>
       </div>
     </div>` : ''}
+
+    ${data.status === 'approved' ? `
+    <div class="card-actions">
+      <textarea id="revoke-comment-${docId}" class="comment-input" placeholder="Reason for revoking this pass (recommended)..."></textarea>
+      <div class="action-buttons">
+        <button class="btn-reject" onclick="confirmRevoke('${docId}')">🔴 Revoke Pass</button>
+      </div>
+    </div>` : ''}
+
     <div class="card-footer">
       <span class="card-date">Submitted: ${data.createdAt ? formatTimestamp(data.createdAt) : 'N/A'}</span>
     </div>`;
@@ -190,10 +208,10 @@ function createDSACard(docId, data) {
 }
 
 // ---------------------------------------------------------------
-// MODAL
+// APPROVE / REJECT MODAL
 // ---------------------------------------------------------------
 function confirmAction(docId, status) {
-  pendingAction = { docId, status };
+  pendingAction = { docId, status, type: 'decision' };
   const modal      = document.getElementById('confirmModal');
   const icon       = document.getElementById('modalIcon');
   const title      = document.getElementById('modalTitle');
@@ -214,16 +232,45 @@ function confirmAction(docId, status) {
   }
   modal.classList.remove('hidden');
 }
+
+// ---------------------------------------------------------------
+// REVOKE MODAL
+// ---------------------------------------------------------------
+function confirmRevoke(docId) {
+  pendingAction = { docId, status: 'revoked', type: 'revoke' };
+  const modal      = document.getElementById('confirmModal');
+  const icon       = document.getElementById('modalIcon');
+  const title      = document.getElementById('modalTitle');
+  const msg        = document.getElementById('modalMsg');
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  icon.textContent       = '🔴';
+  title.textContent      = 'Revoke This Pass?';
+  msg.textContent        = "This will permanently revoke the student's approved exeat pass. The pass will be rejected at the warden gate and the student will be notified by email. This cannot be undone.";
+  confirmBtn.className   = 'modal-btn-confirm-reject';
+  confirmBtn.textContent = 'Yes, Revoke Pass';
+  modal.classList.remove('hidden');
+}
+
 function closeModal() { document.getElementById('confirmModal').classList.add('hidden'); pendingAction = null; }
 
 async function executeAction() {
   if (!pendingAction) return;
-  const { docId, status } = pendingAction;
-  const comment = document.getElementById(`comment-${docId}`)?.value.trim() || '';
-  closeModal();
+  const { docId, status, type } = pendingAction;
+
+  // Get comment from the right textarea
+  const commentEl = type === 'revoke'
+    ? document.getElementById(`revoke-comment-${docId}`)
+    : document.getElementById(`comment-${docId}`);
+  const comment = commentEl?.value.trim() || '';
+
+  // Show loading state on confirm button — keep modal open so user sees spinner
+  const confirmBtn   = document.getElementById('modalConfirmBtn');
+  const cancelBtn    = document.getElementById('modalCancelBtn') || document.querySelector('.modal-btn-cancel');
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px"><span class="btn-spinner"></span> Processing…</span>';
+  if (cancelBtn) cancelBtn.disabled = true;
 
   try {
-    // Generate a unique pass ID only for approvals
     const passId = status === 'approved' ? generatePassId() : null;
 
     const updateData = {
@@ -233,44 +280,58 @@ async function executeAction() {
       reviewedBy: 'Dean of Student Affairs',
       reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    if (passId) updateData.passId = passId;
+    if (passId)            updateData.passId    = passId;
+    if (status === 'revoked') updateData.revokedAt = firebase.firestore.FieldValue.serverTimestamp();
 
     await db.collection('exeatRequests').doc(docId).update(updateData);
 
+    // Send email notification
     const requestDoc  = await db.collection('exeatRequests').doc(docId).get();
     const requestData = requestDoc.data();
     const studentSnap = await db.collection('users').where('matric', '==', requestData.matric).limit(1).get();
     if (!studentSnap.empty) {
-      await sendExeatEmail(studentSnap.docs[0].data().email, studentSnap.docs[0].data().name, status, requestData, comment);
+      await sendExeatEmail(
+        studentSnap.docs[0].data().email,
+        studentSnap.docs[0].data().name,
+        status, requestData, comment
+      );
     }
 
-    showToast(
-      status === 'approved'
-        ? `Request approved. Pass ID: ${passId}`
-        : 'Request rejected.',
-      status === 'approved' ? 'success' : 'error'
-    );
-    loadRequests('pending');
+    const toastMsg = {
+      approved: `Request approved. Pass ID: ${passId}`,
+      rejected: 'Request rejected.',
+      revoked:  '🔴 Pass revoked. Student has been notified by email.'
+    };
+    showToast(toastMsg[status] || 'Done.', status === 'approved' ? 'success' : 'error');
+
+    loadRequests(status === 'revoked' ? 'approved' : 'pending');
     loadStats();
+
   } catch (err) {
     showToast('Something went wrong. Please try again.', 'error');
+  } finally {
+    closeModal();
+    confirmBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
   }
 }
 
 // ---------------------------------------------------------------
-// STATS
+// STATS — includes revoked count
 // ---------------------------------------------------------------
 async function loadStats() {
   try {
-    const [p, a, r] = await Promise.all([
+    const [p, a, r, v] = await Promise.all([
       db.collection('exeatRequests').where('status','==','pending').get(),
       db.collection('exeatRequests').where('status','==','approved').get(),
-      db.collection('exeatRequests').where('status','==','rejected').get()
+      db.collection('exeatRequests').where('status','==','rejected').get(),
+      db.collection('exeatRequests').where('status','==','revoked').get()
     ]);
     document.getElementById('statPending').textContent  = p.size;
     document.getElementById('statApproved').textContent = a.size;
     document.getElementById('statRejected').textContent = r.size;
-    document.getElementById('statTotal').textContent    = p.size + a.size + r.size;
+    document.getElementById('statRevoked').textContent  = v.size;
+    document.getElementById('statTotal').textContent    = p.size + a.size + r.size + v.size;
   } catch(e) {}
 }
 

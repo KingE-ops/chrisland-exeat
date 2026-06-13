@@ -15,7 +15,6 @@
     <p class="brand-subtitle">Hostel wardens — quickly verify whether a student has an approved exeat.</p>
     <div class="brand-divider"></div>
     <div class="brand-role-indicator">🏠 Warden Access</div>
-    <!-- <div class="brand-links"><a href="index.html">← All Portals</a></div> -->
   </div>
 
   <div class="auth-panel">
@@ -43,37 +42,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/staff-auth.js"></script>
   <script>
-    auth.onAuthStateChanged(user => {
-      if (user) window.location.href = 'warden.html';
-    });
-
-    async function wardenLogin() {
-      const email    = document.getElementById('wardenEmail').value.trim();
-      const password = document.getElementById('wardenPassword').value;
-      const btn      = document.getElementById('wardenLoginBtn');
-      const err      = document.getElementById('wardenError');
-
-      err.classList.add('hidden');
-      btn.disabled = true;
-      btn.textContent = 'Signing in…';
-
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-      } catch(e) {
-        const msgs = {
-          'auth/user-not-found':     'No account found with this email.',
-          'auth/wrong-password':     'Incorrect password.',
-          'auth/invalid-email':      'Invalid email address.',
-          'auth/invalid-credential': 'Invalid email or password.'
-        };
-        err.textContent = msgs[e.code] || e.message;
-        err.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Sign In →';
-      }
-    }
-
     document.addEventListener('keydown', e => { if (e.key === 'Enter') wardenLogin(); });
   </script>
 </body>
